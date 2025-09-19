@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-# Train PyTorch LogReg (LBFGS) + MLP with cross-validation, unique run dir, and params JSON.
-# - Saves per-fold coefficients and per-fold AUCs into run_dir/fold_csv/
-# - Keeps prior defaults/behavior; adds --cv_folds and run metadata.
 import os, argparse, math, warnings, time, json
 import numpy as np
 import pandas as pd
