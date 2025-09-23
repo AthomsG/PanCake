@@ -17,10 +17,10 @@ from torch.utils.data import TensorDataset, DataLoader
 # --------------------------- CLI ---------------------------
 def get_args():
     ap = argparse.ArgumentParser(description="Train PyTorch LogReg (LBFGS) + MLP; evaluate & save")
-    ap.add_argument("--input_dir", default="outputs/process-data",
-                    help="Dir with genes_filtered.parquet & species_filtered.parquet")
-    ap.add_argument("--out_dir", default="outputs/train-models",
-                    help="Base directory to write outputs")
+    ap.add_argument("--input_dir", required=True,
+                help="Dir with genes_filtered.parquet & species_filtered.parquet")
+    ap.add_argument("--out_dir", required=True,
+                help="Base directory to write outputs")
     ap.add_argument("--rank", default="s__", choices=["s__","g__","f__","o__","c__","p__"])
     ap.add_argument("--batch", type=int, default=128)
     ap.add_argument("--epochs", type=int, default=400)

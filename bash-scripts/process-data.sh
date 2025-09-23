@@ -26,8 +26,8 @@ python3 -m venv "${SCRIPT_DIR}/.venv"
 
 echo "=== [2/4] Activating venv & installing requirements ==="
 source "${SCRIPT_DIR}/.venv/bin/activate"
-python -m pip install --upgrade pip
-python -m pip install -r "${REQ_FILE}"
+python -m pip install --upgrade pip -q
+python -m pip install -r "${REQ_FILE}" -q || { echo "Failed to install requirements"; exit 1; }
 
 echo "=== [3/4] Processing data ==="
 python "${SRC_DIR}/process-data.py" \

@@ -4,8 +4,8 @@ set -euo pipefail
 # Usage:
 # ./train-models.sh [rank] [base_input_dir] [base_output_dir] [n_null] [logreg_tol] [logreg_max_iter] [cv_folds] [val_frac] [seed]
 RANK="${1:-s__}"
-BASE_IN="${2:-outputs/process-data}"
-BASE_OUT="${3:-outputs/train-models}"
+BASE_IN="$2"
+BASE_OUT="$3"
 N_NULL="${4:-10}"
 LOGREG_TOL="${5:-1e-4}"
 LOGREG_MAX_IT="${6:-100}"
@@ -27,8 +27,8 @@ python3 -m venv "${SCRIPT_DIR}/.venv"
 
 echo "=== [2/4] Activating venv & installing requirements ==="
 source "${SCRIPT_DIR}/.venv/bin/activate"
-python -m pip install --upgrade pip
-python -m pip install -r "${REQ_FILE}"
+python -m pip install --upgrade pip -q
+python -m pip install -r "${REQ_FILE}" -q || { echo "Failed to install requirements"; exit 1; }
 
 echo "=== [3/4] Training models (LogReg LBFGS + MLP; ${N_NULL} null perms; ${CV_FOLDS}-fold CV) ==="
 echo "Using rank: ${RANK}"

@@ -23,9 +23,9 @@ python3 -m venv "${SCRIPT_DIR}/.venv"
 
 echo "=== [2/5] Activating venv & installing requirements ==="
 source "${SCRIPT_DIR}/.venv/bin/activate"
-python -m pip install --upgrade pip
+python -m pip install --upgrade pip -q
 
-python -m pip install -v -r "${REQ_FILE}" || { echo "Failed to install requirements"; exit 1; }
+python -m pip install -v -r "${REQ_FILE}" -q || { echo "Failed to install requirements"; exit 1; }
 
 echo "=== [3/5] Querying Sandpiper API ==="
 python "${SRC_DIR}/query-sandpiper.py" \
