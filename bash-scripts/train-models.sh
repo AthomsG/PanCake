@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Usage:
-# ./train-models.sh [rank] [base_input_dir] [base_output_dir] [n_null] [logreg_tol] [logreg_max_iter] [cv_folds] [val_frac] [seed]
+# ./train-models.sh [rank] [base_input_dir] [base_output_dir] [n_null] [logreg_tol] [logreg_max_iter] [cv_folds] [val_frac] [seed] [epochs]
 RANK="${1:-s__}"
 BASE_IN="$2"
 BASE_OUT="$3"
@@ -12,6 +12,7 @@ LOGREG_MAX_IT="${6:-100}"
 CV_FOLDS="${7:-5}"
 VAL_FRAC="${8:-0.15}"
 SEED="${9:-10}"
+EPOCHS="${10:-400}"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC_DIR="${SCRIPT_DIR}/src"
@@ -44,7 +45,8 @@ python "${SRC_DIR}/train-models.py" \
   --logreg_max_iter "${LOGREG_MAX_IT}" \
   --cv_folds "${CV_FOLDS}" \
   --val_frac "${VAL_FRAC}" \
-  --seed "${SEED}"
+  --seed "${SEED}" \
+  --epochs "${EPOCHS}"
 
 echo "=== [4/4] Cleaning up venv ==="
 deactivate
