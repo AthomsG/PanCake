@@ -6,7 +6,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=64G
-#SBATCH --time=03:00:00
+#SBATCH --time=06:00:00
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=thomas.gaehtgens@univie.ac.at
 
@@ -35,14 +35,14 @@ echo "=== Starting pancake pipeline on $(hostname) with GPU: ${CUDA_VISIBLE_DEVI
 # ------------------------------------ # 
 
 echo "[Stage 1] Generating parquet data"
-# $SCRIPTS_DIR/generate-parquet.sh $DATA_DIR "s__" outputs/${DATA_NAME}/generate-parquet
+$SCRIPTS_DIR/generate-parquet.sh $DATA_DIR "s__" outputs/${DATA_NAME}/generate-parquet
 
 # ------------------------------------- # 
 # ---------- Data Processing ---------- #
 # ------------------------------------- # 
 
 echo "[Stage 2] Processing data"
-# $SCRIPTS_DIR/process-data.sh outputs/${DATA_NAME} $DATA_DIR
+$SCRIPTS_DIR/process-data.sh outputs/${DATA_NAME} $DATA_DIR
 
 # ------------------------------------ # 
 # ---------- Model Training ---------- #
@@ -62,10 +62,10 @@ $SCRIPTS_DIR/train-models.sh \
   "s__" \
   "outputs/${DATA_NAME}/process-data" \
   "outputs/${DATA_NAME}/models" \
-  1 \
+  200 \
   1e-4 \
-  1 \
-  2 \
+  400 \
+  10 \
   0.15 \
   10
 
