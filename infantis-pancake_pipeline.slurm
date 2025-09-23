@@ -38,6 +38,6 @@ echo "[Stage 2] Processing data"
 # $SCRIPTS_DIR/process-data.sh outputs/${DATA_NAME} $DATA_DIR
 
 echo "[Stage 3] Training models"
-$SCRIPTS_DIR/train-models.sh "s__" outputs/${DATA_NAME}/process-data outputs/${DATA_NAME}/models
+$SCRIPTS_DIR/train-models.sh "s__" outputs/${DATA_NAME}/process-data outputs/${DATA_NAME}/models 10 1e-4 100 5 0.15 10 400
 
 echo "=== Pancake pipeline finished successfully! ==="
