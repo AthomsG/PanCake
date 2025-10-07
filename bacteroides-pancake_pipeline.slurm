@@ -6,7 +6,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=64G
-#SBATCH --time=06:00:00
+#SBATCH --time=10:00:00
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=thomas.gaehtgens@univie.ac.at
 
@@ -62,7 +62,7 @@ $SCRIPTS_DIR/train-models.sh \
   "s__" \
   "outputs/${DATA_NAME}/process-data" \
   "outputs/${DATA_NAME}/models" \
-  200 \
+  10 \
   1e-4 \
   400 \
   10 \
