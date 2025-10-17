@@ -34,6 +34,7 @@ echo "=== [3/4] Training models (LogReg LBFGS + MLP; ${N_NULL} null perms; ${CV_
 echo "Using rank: ${RANK}"
 echo "Input directory: ${PARQUET_IN}"
 echo "Output directory: ${OUT_DIR}"
+echo "Model weights will be saved"
 
 python "${SRC_DIR}/train-models.py" \
   --input_dir "${PARQUET_IN}" \
@@ -44,7 +45,8 @@ python "${SRC_DIR}/train-models.py" \
   --logreg_max_iter "${LOGREG_MAX_IT}" \
   --cv_folds "${CV_FOLDS}" \
   --val_frac "${VAL_FRAC}" \
-  --seed "${SEED}"
+  --seed "${SEED}" \
+  --save_models
 
 echo "=== [4/4] Cleaning up venv ==="
 deactivate

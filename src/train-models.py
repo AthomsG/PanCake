@@ -35,6 +35,7 @@ def get_args():
     ap.add_argument("--seed", type=int, default=10)
     ap.add_argument("--cv_folds", type=int, default=5, help="Number of CV folds (>=2)")
     ap.add_argument("--val_frac", type=float, default=0.15, help="Validation fraction inside each fold's train split")
+    ap.add_argument("--save_models", action="store_true", help="Save model weights for later use")
     return ap.parse_args()
 
 # --------------------------- Utils ---------------------------
@@ -217,6 +218,13 @@ def main():
     os.makedirs(run_dir, exist_ok=True)
     fold_csv_dir = os.path.join(run_dir, "fold_csv")
     os.makedirs(fold_csv_dir, exist_ok=True)
+    
+    # Create model weights directory if saving models
+    model_weights_dir = None
+    if args.save_models:
+        model_weights_dir = os.path.join(run_dir, "model-weights")
+        os.makedirs(model_weights_dir, exist_ok=True)
+        print(f"Will save model weights to: {model_weights_dir}")
 
     # Save params JSON
     params = {
@@ -237,6 +245,7 @@ def main():
         "input_dir": args.input_dir,
         "out_dir": args.out_dir,
         "run_dir": run_dir,
+        "save_models": args.save_models,
     }
     with open(os.path.join(run_dir, "params.json"), "w") as f:
         json.dump(params, f, indent=2)
@@ -325,6 +334,35 @@ def main():
             max_epochs=args.epochs, patience=args.patience, min_delta=1e-4,
             pos_weight=pos_weight_vec, seed=args.seed + fold_idx
         )
+        
+        # Save model weights if requested
+        if args.save_models and model_weights_dir:
+            # Save LogReg model
+            logreg_path = os.path.join(model_weights_dir, f"LogReg_fold{fold_idx}.pt")
+            torch.save({
+                "model_state": logreg_lbfgs.state_dict(),
+                "in_dim": in_dim,
+                "out_dim": out_dim,
+                "species_names": species_names.tolist(),
+                "gene_names": gene_names.tolist(),
+                "fold_idx": fold_idx
+            }, logreg_path)
+            
+            # Save MLP model
+            mlp_path = os.path.join(model_weights_dir, f"MLP_fold{fold_idx}.pt")
+            torch.save({
+                "model_state": mlp_real.state_dict(),
+                "in_dim": in_dim,
+                "out_dim": out_dim,
+                "h1": 256,  # Match parameters used in train_mlp
+                "h2": 128,
+                "p_drop": 0.2,
+                "species_names": species_names.tolist(),
+                "gene_names": gene_names.tolist(),
+                "fold_idx": fold_idx
+            }, mlp_path)
+            
+            print(f"Saved model weights for fold {fold_idx}")
 
         # ---- Null permutations (MLP, train labels only) ----
         auc_null_list = []
@@ -439,6 +477,8 @@ def main():
     print(f"- Per-fold CSVs: {fold_csv_dir}")
     print(f"- Params JSON:   {os.path.join(run_dir, 'params.json')}")
     print(f"- AUC plot:      {os.path.join(run_dir, 'auc_distributions.png')}")
+    if args.save_models:
+        print(f"- Model weights: {model_weights_dir}")
 
 if __name__ == "__main__":
     main()
