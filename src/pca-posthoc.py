@@ -14,6 +14,7 @@ from matplotlib.colors import ListedColormap
 import seaborn as sns
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
 
 import torch
 import torch.nn as nn
@@ -182,7 +183,7 @@ def run_pca_analysis(outputs, n_components=2):
 
 def plot_pca(components, explained_variance, sample_ids=None, save_path=None, title="PCA of Model Outputs"):
     """Plot PCA results"""
-    plt.figure(figsize=(10, 8), dpi=300)
+    plt.figure(figsize=(4, 3), dpi=300)
     
     # Create scatter plot
     scatter = plt.scatter(components[:, 0], components[:, 1], alpha=0.6, s=30)
@@ -205,7 +206,7 @@ def plot_pca(components, explained_variance, sample_ids=None, save_path=None, ti
 def plot_pca_with_density(components, explained_variance, save_path=None, title="PCA with Density"):
     """Plot PCA results with density information"""
     # Create figure with two subplots
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8), dpi=300)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(4, 3), dpi=300)
     
     # Left plot: scatter plot
     scatter = ax1.scatter(components[:, 0], components[:, 1], alpha=0.6, s=30)
@@ -228,6 +229,72 @@ def plot_pca_with_density(components, explained_variance, save_path=None, title=
     if save_path:
         plt.savefig(save_path, bbox_inches="tight")
     
+    plt.close()
+
+def find_cluster_centers_and_reconstruct(components, filtered_outputs, pca, scaler, 
+                                          good_gene_names, n_clusters=3):
+    """
+    Find cluster centers in PCA space and reconstruct gene probabilities at those centers.
+    Returns the 'inverse PCA' - gene probability patterns at cluster centers.
+    """
+    # Perform K-means clustering on PCA components
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    cluster_labels = kmeans.fit_predict(components)
+    cluster_centers_pca = kmeans.cluster_centers_  # Shape: (n_clusters, 2)
+    
+    # Count samples per cluster
+    unique, counts = np.unique(cluster_labels, return_counts=True)
+    cluster_sample_counts = dict(zip(unique, counts))
+    
+    # Inverse transform: PCA space -> scaled space
+    # We need to pad the 2D centers to full dimensionality for inverse transform
+    n_features = filtered_outputs.shape[1]
+    
+    # Get the PCA components (loadings)
+    pca_components = pca.components_  # Shape: (2, n_features)
+    
+    # Reconstruct in scaled space
+    reconstructed_scaled = cluster_centers_pca @ pca_components  # (n_clusters, n_features)
+    
+    # Inverse transform: scaled space -> original space
+    reconstructed_probs = scaler.inverse_transform(reconstructed_scaled)  # (n_clusters, n_features)
+    
+    # Clip to valid probability range [0, 1]
+    reconstructed_probs = np.clip(reconstructed_probs, 0.0, 1.0)
+    
+    # Create DataFrame for easy interpretation
+    cluster_gene_probs = pd.DataFrame(
+        reconstructed_probs,
+        columns=good_gene_names,
+        index=[f"Cluster_{i+1}" for i in range(n_clusters)]
+    )
+    
+    return cluster_gene_probs, cluster_labels, cluster_centers_pca, cluster_sample_counts
+
+def plot_pca_with_clusters(components, explained_variance, cluster_labels, cluster_centers, 
+                           save_path=None, title="PCA with Clusters"):
+    """Plot PCA results with cluster assignments"""
+    plt.figure(figsize=(5, 4), dpi=300)
+    
+    # Plot points colored by cluster
+    scatter = plt.scatter(components[:, 0], components[:, 1], 
+                         c=cluster_labels, cmap='viridis', alpha=0.6, s=30)
+    
+    # Plot cluster centers
+    plt.scatter(cluster_centers[:, 0], cluster_centers[:, 1], 
+               c='red', marker='X', s=200, edgecolors='black', linewidths=2,
+               label='Cluster Centers')
+    
+    plt.xlabel(f"PC1 ({explained_variance[0]:.2f}%)")
+    plt.ylabel(f"PC2 ({explained_variance[1]:.2f}%)")
+    plt.title(title)
+    plt.colorbar(scatter, label='Cluster')
+    plt.legend()
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path, bbox_inches="tight")
     plt.close()
 
 def analyze_fold_model(model_file, gene_names, good_genes, X, device, output_dir, batch_size, model_name, fold_idx):
@@ -262,26 +329,64 @@ def analyze_fold_model(model_file, gene_names, good_genes, X, device, output_dir
     
     # Filter outputs to only include good genes
     filtered_outputs = outputs[:, good_gene_indices]
+    good_gene_names_list = [model_gene_names[i] for i in good_gene_indices]
     
-    # Run PCA on filtered outputs
-    components, explained_variance, pca = run_pca_analysis(filtered_outputs)
+    # Standardize and run PCA
+    scaler = StandardScaler()
+    outputs_scaled = scaler.fit_transform(filtered_outputs)
+    
+    pca = PCA(n_components=2)
+    components = pca.fit_transform(outputs_scaled)
+    explained_variance = pca.explained_variance_ratio_ * 100
     
     # Create output directory for this model
     model_output_dir = os.path.join(output_dir, f"{model_name}_fold{fold_idx}")
     os.makedirs(model_output_dir, exist_ok=True)
     
-    # Plot PCA results
+    # Find cluster centers and reconstruct gene probabilities
+    cluster_gene_probs, cluster_labels, cluster_centers, cluster_sample_counts = find_cluster_centers_and_reconstruct(
+        components, filtered_outputs, pca, scaler, good_gene_names_list, n_clusters=3
+    )
+    
+    # Save reconstructed gene probabilities at cluster centers
+    cluster_probs_path = os.path.join(model_output_dir, "cluster_gene_probabilities.csv")
+    cluster_gene_probs.to_csv(cluster_probs_path)
+    print(f"Saved cluster gene probabilities to {cluster_probs_path}")
+    
+    # Save cluster statistics including sample counts
+    cluster_stats_path = os.path.join(model_output_dir, "cluster_statistics.txt")
+    with open(cluster_stats_path, 'w') as f:
+        f.write(f"Cluster Statistics for {model_name} Fold {fold_idx}\n")
+        f.write("="*60 + "\n\n")
+        f.write(f"Total samples: {len(cluster_labels)}\n")
+        f.write(f"Number of clusters: {len(cluster_sample_counts)}\n\n")
+        for cluster_id in sorted(cluster_sample_counts.keys()):
+            count = cluster_sample_counts[cluster_id]
+            percentage = 100.0 * count / len(cluster_labels)
+            f.write(f"Cluster {cluster_id + 1}:\n")
+            f.write(f"  Samples: {count} ({percentage:.2f}%)\n")
+            f.write(f"  Center (PC1, PC2): ({cluster_centers[cluster_id, 0]:.4f}, {cluster_centers[cluster_id, 1]:.4f})\n\n")
+    print(f"Saved cluster statistics to {cluster_stats_path}")
+    
+    # Plot PCA with cluster assignments
+    plot_pca_with_clusters(
+        components, explained_variance, cluster_labels, cluster_centers,
+        save_path=os.path.join(model_output_dir, "pca_clusters.png"),
+        title=f"PCA Clusters - {model_name} Fold {fold_idx}"
+    )
+    
+    # Plot PCA results (original)
     plot_pca(
         components, explained_variance, 
         save_path=os.path.join(model_output_dir, "pca_scatter.png"),
-        title=f"PCA of {model_name} Fold {fold_idx} (Good Genes Only)"
+        title=f"PCA of {model_name} Fold {fold_idx} (AUC > Threshold)"
     )
     
     # Plot PCA with density
     plot_pca_with_density(
         components, explained_variance,
         save_path=os.path.join(model_output_dir, "pca_density.png"),
-        title=f"PCA of {model_name} Fold {fold_idx} (Good Genes Only)"
+        title=f"PCA of {model_name} Fold {fold_idx} (AUC > Threshold)"
     )
     
     # Save PCA components and variance explained
@@ -289,14 +394,20 @@ def analyze_fold_model(model_file, gene_names, good_genes, X, device, output_dir
         os.path.join(model_output_dir, "pca_results.npz"),
         components=components,
         explained_variance=explained_variance,
-        good_gene_indices=good_gene_indices
+        good_gene_indices=good_gene_indices,
+        cluster_centers_pca=cluster_centers,
+        cluster_labels=cluster_labels,
+        cluster_sample_counts=np.array([cluster_sample_counts[i] for i in sorted(cluster_sample_counts.keys())])
     )
     
     # Save mapping of PC indices to gene names
     with open(os.path.join(model_output_dir, "good_genes.json"), 'w') as f:
         json.dump({
-            "good_genes": [model_gene_names[i] for i in good_gene_indices],
-            "explained_variance": explained_variance.tolist()
+            "good_genes": good_gene_names_list,
+            "explained_variance": explained_variance.tolist(),
+            "n_clusters": 3,
+            "cluster_centers_pc1_pc2": cluster_centers.tolist(),
+            "cluster_sample_counts": {f"Cluster_{k+1}": int(v) for k, v in cluster_sample_counts.items()}
         }, f, indent=2)
     
     return {
@@ -304,7 +415,9 @@ def analyze_fold_model(model_file, gene_names, good_genes, X, device, output_dir
         "explained_variance": explained_variance,
         "good_gene_indices": good_gene_indices,
         "fold_idx": fold_idx,
-        "model_name": model_name
+        "model_name": model_name,
+        "cluster_gene_probs": cluster_gene_probs,
+        "cluster_sample_counts": cluster_sample_counts
     }
 
 def create_summary_plots(all_results, output_dir):
@@ -317,7 +430,7 @@ def create_summary_plots(all_results, output_dir):
     os.makedirs(summary_dir, exist_ok=True)
     
     # Plot explained variance by model and fold
-    plt.figure(figsize=(10, 6), dpi=300)
+    plt.figure(figsize=(4, 3), dpi=300)
     model_types = sorted(set(r["model_name"] for r in all_results))
     
     for model_name in model_types:

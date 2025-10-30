@@ -1,0 +1,8 @@
+run posthoc analysis from root directory directly with:
+
+python src/pca-posthoc.py \
+    --model_dir outputs/infantis-genes/models \
+    --input_dir outputs/infantis-genes/process-data \
+    --output_dir outputs/infantis-genes \
+    --auc_threshold 0.85 \
+    --model_type both
