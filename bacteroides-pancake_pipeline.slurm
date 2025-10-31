@@ -58,6 +58,7 @@ echo "[Stage 3] Training models"
 # 7: CV_FOLDS
 # 8: VAL_FRAC
 # 9: SEED
+# 10: EPOCHS
 $SCRIPTS_DIR/train-models.sh \
   "s__" \
   "outputs/${DATA_NAME}/process-data" \
@@ -67,6 +68,7 @@ $SCRIPTS_DIR/train-models.sh \
   400 \
   10 \
   0.15 \
-  10
+  10 \
+  400
 
 echo "=== Pancake pipeline finished successfully! ==="
